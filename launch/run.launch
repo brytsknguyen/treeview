@@ -1,15 +1,15 @@
 <launch>
 
-      <!-- AirForestry Dataset -->
-      <!-- <arg  name="bag_file"  default="/media/tmn/mySataSSD2/KTH_AirForestry/tmn__2022-10-06-13-50-02.bag"/> <arg name="start_time" default="0"/> -->
-      <arg  name="bag_file"  default="/media/tmn/mySataSSD2/KTH_AirForestry/tmn__2022-10-06-13-40-39.bag"/> <arg name="start_time" default="0"/>
+      <!-- treeview Dataset -->
+      <!-- <arg  name="bag_file"  default="/media/tmn/mySataSSD2/KTH_treeview/tmn__2022-10-06-13-50-02.bag"/> <arg name="start_time" default="0"/> -->
+      <arg  name="bag_file"  default="/media/tmn/mySataSSD2/KTH_treeview/tmn__2022-10-06-13-40-39.bag"/> <arg name="start_time" default="0"/>
             
       <!-- Run the livox to ouster converter -->
       <node pkg="treeview" type="treeview_node" name="treeview_node" respawn="false" output="log" required="true"> </node>
 
       <!--- Run Rviz-->
       <node pkg="rviz" type="rviz" name="rviz" respawn="true" output="log"
-            args="-d $(find treeview)/launch/airforestry.rviz" />
+            args="-d $(find treeview)/launch/treeview.rviz" />
 
       <!-- Play the bag file -->
       <param name="/use_sim_time" value="true" />
