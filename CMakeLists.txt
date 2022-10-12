@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(airforest_viz)
+project(treeview)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -64,7 +64,7 @@ include_directories(
 	${PCL_INCLUDE_DIRS}
 )
 
-add_executable(${PROJECT_NAME}_node src/airforest_viz.cpp)
+add_executable(${PROJECT_NAME}_node src/treeview.cpp)
 add_dependencies(${PROJECT_NAME}_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_compile_options(${PROJECT_NAME}_node PRIVATE ${OpenMP_CXX_FLAGS})
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBRARIES} ${OpenMP_CXX_FLAGS})

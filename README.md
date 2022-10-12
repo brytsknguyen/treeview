@@ -1,4 +1,4 @@
-# airforest_viz: Surfel-based Lidar-Inertial Odometry and Mapping
+# treeview: Surfel-based Lidar-Inertial Odometry and Mapping
 <!-- via Continuous-time Optimization -->
 
 # Prerequisite
@@ -15,7 +15,7 @@ Please install all dependencies first. Afterwards, create a ros workspace, clone
 ```
 mkdir catkin_ws/src
 cd catkin_ws/src
-git clone https://github.com/brytsknguyen/airforest_viz
+git clone https://github.com/brytsknguyen/treeview
 cd ..; catkin build
 ```
 
