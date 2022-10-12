@@ -31,7 +31,10 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <livox_ros_driver/CustomMsg.h>
+
+#include "sensor_msgs/Imu.h"
+#include "geometry_msgs/PointStamped.h"
+#include "livox_ros_driver/CustomMsg.h"
 
 using namespace std;
 using namespace pcl;
@@ -63,14 +66,13 @@ private:
     // Node handler
     ros::NodeHandlePtr nh_ptr;
 
-    ros::Subscriber livoxCloudSub;
-    ros::Publisher ousterCloudPub;
-
+    int NUM_THREAD;
     double intensityConvCoef = -1;
+    ros::Subscriber livoxCloudSub;
+    ros::Publisher  ousterCloudPub;
 
-    int NUM_CORE;
-
-    // bool remove_human_body = true;
+    ros::Subscriber djiImuSub;
+    ros::Subscriber djiPosSub;
 
 public:
     // Destructor
@@ -78,20 +80,21 @@ public:
 
     AirForestViz(ros::NodeHandlePtr &nh_ptr_) : nh_ptr(nh_ptr_)
     {
-        NUM_CORE = omp_get_max_threads();
+        NUM_THREAD = omp_get_max_threads();
 
         // Coefficient to convert the intensity from livox to ouster
         nh_ptr->param("intensityConvCoef", intensityConvCoef, 1.0);
 
         // Subscribe to the livox topic
-        livoxCloudSub = nh_ptr->subscribe<livox_ros_driver::CustomMsg>("/livox/lidar", 50, &AirForestViz::cloudHandler, this, ros::TransportHints().tcpNoDelay());
+        livoxCloudSub  = nh_ptr->subscribe<livox_ros_driver::CustomMsg>("/livox/lidar", 50, &AirForestViz::livoxCloudHandler, this, ros::TransportHints().tcpNoDelay());
         ousterCloudPub = nh_ptr->advertise<sensor_msgs::PointCloud2>("/livox/lidar_ouster", 50);
 
         // Subscribe to the position topic
-        
+        djiImuSub = nh_ptr->subscribe("/dji_osdk_ros/imu", 100, &AirForestViz::djiImuHandler, this);
+        djiPosSub = nh_ptr->subscribe("/dji_osdk_ros/local_position", 100, &AirForestViz::djiPosHandler, this);
     }
 
-    void cloudHandler(const livox_ros_driver::CustomMsg::ConstPtr &msgIn)
+    void livoxCloudHandler(const livox_ros_driver::CustomMsg::ConstPtr &msgIn)
     {
         int cloudsize = msgIn->points.size();
 
@@ -99,7 +102,7 @@ public:
         laserCloudOuster.points.resize(cloudsize);
         laserCloudOuster.is_dense = true;
 
-        #pragma omp parallel for num_threads(NUM_CORE)
+        #pragma omp parallel for num_threads(NUM_THREAD)
         for (size_t i = 0; i < cloudsize; i++)
         {
             auto &src = msgIn->points[i];
@@ -123,6 +126,16 @@ public:
         tempCloud.header.stamp = thisStamp;
         tempCloud.header.frame_id = thisFrame;
         thisPub.publish(tempCloud);
+    }
+
+    void djiImuHandler(const sensor_msgs::Imu::ConstPtr msg)
+    {
+
+    }
+
+    void djiPosHandler(const geometry_msgs::PointStamped::ConstPtr msg)
+    {
+
     }
 };
 
