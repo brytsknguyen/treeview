@@ -18,3 +18,7 @@ git clone https://github.com/brytsknguyen/treeview
 cd ..; catkin build
 ```
 
+# Launch
+
+After Installation, add the path of the rosbags to the launch file `launch/run.launch` and then launch it to view the data.
+
