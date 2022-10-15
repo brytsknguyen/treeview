@@ -2,9 +2,14 @@
 // Created by Thien-Minh Nguyen on 15/12/20.
 //
 
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/registration/icp.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/pcl_base.h>
+#include <pcl/impl/pcl_base.hpp>
 
 #include "sensor_msgs/Imu.h"
 #include "geometry_msgs/PointStamped.h"
@@ -14,8 +19,11 @@
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
+#include <Eigen/Dense>
+
 using namespace std;
 using namespace pcl;
+using namespace Eigen;
 using namespace message_filters;
 
 struct PointOuster
@@ -47,13 +55,14 @@ private:
 
     int NUM_THREAD;
     double intensityConvCoef = -1;
-    ros::Subscriber livoxCloudSub;
-    ros::Publisher  ousterCloudPub;
+    
+    ros::Publisher ousterCloudPub;
 
+    message_filters::Subscriber<livox_ros_driver::CustomMsg> livoxCloudSub;
     message_filters::Subscriber<geometry_msgs::PointStamped> djiPosSub;
     message_filters::Subscriber<sensor_msgs::Imu> djiImuSub;
 
-    typedef sync_policies::ApproximateTime<geometry_msgs::PointStamped, sensor_msgs::Imu> MySyncPolicy;
+    typedef sync_policies::ApproximateTime<livox_ros_driver::CustomMsg, geometry_msgs::PointStamped, sensor_msgs::Imu> MySyncPolicy;
     Synchronizer<MySyncPolicy> sync;
 
 public:
@@ -62,7 +71,7 @@ public:
 
     AirForestViz(ros::NodeHandlePtr &nh_ptr_)
         : nh_ptr(nh_ptr_),
-          sync(MySyncPolicy(10), djiPosSub, djiImuSub)
+          sync(MySyncPolicy(10), livoxCloudSub, djiPosSub, djiImuSub)
     {
         NUM_THREAD = omp_get_max_threads();
 
@@ -70,13 +79,14 @@ public:
         nh_ptr->param("intensityConvCoef", intensityConvCoef, 1.0);
 
         // Subscribe to the livox topic
-        livoxCloudSub  = nh_ptr->subscribe<livox_ros_driver::CustomMsg>("/livox/lidar", 50, &AirForestViz::livoxCloudHandler, this, ros::TransportHints().tcpNoDelay());
+        // livoxCloudSub  = nh_ptr->subscribe<livox_ros_driver::CustomMsg>("/livox/lidar", 50, &AirForestViz::livoxCloudHandler, this, ros::TransportHints().tcpNoDelay());
         ousterCloudPub = nh_ptr->advertise<sensor_msgs::PointCloud2>("/livox/lidar_ouster", 50);
 
+        livoxCloudSub.subscribe(*(nh_ptr), "/livox/lidar", 1);
         djiPosSub.subscribe(*(nh_ptr), "/dji_osdk_ros/local_position", 1);
         djiImuSub.subscribe(*(nh_ptr), "/dji_osdk_ros/imu", 1);
 
-        sync.registerCallback(boost::bind(&AirForestViz::djiImuPosHandler, this, _1, _2));
+        sync.registerCallback(boost::bind(&AirForestViz::djiCloudImuPosHandler, this, _1, _2, _3));
     }
 
     void livoxCloudHandler(const livox_ros_driver::CustomMsg::ConstPtr &msgIn)
@@ -113,13 +123,42 @@ public:
         thisPub.publish(tempCloud);
     }
 
-    void djiImuPosHandler(const geometry_msgs::PointStamped::ConstPtr &PosMsg, const sensor_msgs::Imu::ConstPtr &ImuMsg)
+    void djiCloudImuPosHandler(const livox_ros_driver::CustomMsg::ConstPtr &CloudMsg,
+                               const geometry_msgs::PointStamped::ConstPtr &PosMsg,
+                               const sensor_msgs::Imu::ConstPtr &ImuMsg)
     {
 
-        printf("Pos time: %.3f. Imu time: %.3f. Time diff: %6.3f\n",
+        printf("Cloud Time: %.3f. Pos time: %.3f. Imu time: %.3f. Time diff: %6.3f\n",
+                CloudMsg->header.stamp.toSec(),
                 PosMsg->header.stamp.toSec(), ImuMsg->header.stamp.toSec(),
                 PosMsg->header.stamp.toSec() - ImuMsg->header.stamp.toSec());
 
+        int cloudsize = CloudMsg->points.size();
+
+        CloudOuster laserCloudOuster;
+        laserCloudOuster.points.resize(cloudsize);
+        laserCloudOuster.is_dense = true;
+
+        #pragma omp parallel for num_threads(NUM_THREAD)
+        for (size_t i = 0; i < cloudsize; i++)
+        {
+            auto &src = CloudMsg->points[i];
+            auto &dst = laserCloudOuster.points[i];
+            dst.x = src.x;
+            dst.y = src.y;
+            dst.z = src.z;
+            dst.intensity = src.reflectivity * intensityConvCoef;
+            dst.ring = src.line;
+            dst.t = src.offset_time;
+            dst.range = sqrt(src.x * src.x + src.y * src.y + src.z * src.z);
+        }
+
+        Quaterniond q(ImuMsg->orientation.w, ImuMsg->orientation.x, ImuMsg->orientation.y, ImuMsg->orientation.z);
+        Vector3d p(PosMsg->point.x, PosMsg->point.y, PosMsg->point.z);
+
+        pcl::transformPointCloud(laserCloudOuster, laserCloudOuster, p, q);
+
+        publishCloud(ousterCloudPub, laserCloudOuster, CloudMsg->header.stamp, "world");
     }
 };
 

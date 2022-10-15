@@ -25,6 +25,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## Find 3rd-party packages and libraries
 find_package(OpenMP REQUIRED)
 find_package(PCL REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(Ceres REQUIRED)
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
@@ -62,6 +64,8 @@ include_directories(
 	include
 	${catkin_INCLUDE_DIRS}
 	${PCL_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
+  ${CERES_INCLUDE_DIR}
 )
 
 add_executable(${PROJECT_NAME}_node src/treeview.cpp)
