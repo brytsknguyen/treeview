@@ -1,11 +1,10 @@
 <launch>
 
       <!-- treeview Dataset -->
-      <!-- <arg  name="bag_file"  default="/media/tmn/mySataSSD2/KTH_treeview/tmn__2022-10-06-13-50-02.bag"/> <arg name="start_time" default="0"/> -->
-      <arg  name="bag_file"  default="/media/tmn/mySataSSD2/KTH_treeview/tmn__2022-10-06-13-40-39.bag"/> <arg name="start_time" default="0"/>
+      <arg  name="bag_file"  default="/home/tmn/DATASETS/tmn__2022-10-06-13-50-02_filter.bag"/> <arg name="start_time" default="0"/>
             
       <!-- Run the livox to ouster converter -->
-      <node pkg="treeview" type="treeview_node" name="treeview_node" respawn="false" output="log" required="true"> </node>
+      <node pkg="treeview" type="treeview_node" name="treeview_node" respawn="false" output="screen" required="true"> </node>
 
       <!--- Run Rviz-->
       <node pkg="rviz" type="rviz" name="rviz" respawn="true" output="log"

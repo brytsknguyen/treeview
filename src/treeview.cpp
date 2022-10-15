@@ -10,8 +10,13 @@
 #include "geometry_msgs/PointStamped.h"
 #include "livox_ros_driver/CustomMsg.h"
 
+#include <message_filters/subscriber.h>
+#include <message_filters/time_synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
+
 using namespace std;
 using namespace pcl;
+using namespace message_filters;
 
 struct PointOuster
 {
@@ -45,14 +50,19 @@ private:
     ros::Subscriber livoxCloudSub;
     ros::Publisher  ousterCloudPub;
 
-    ros::Subscriber djiImuSub;
-    ros::Subscriber djiPosSub;
+    message_filters::Subscriber<geometry_msgs::PointStamped> djiPosSub;
+    message_filters::Subscriber<sensor_msgs::Imu> djiImuSub;
+
+    typedef sync_policies::ApproximateTime<geometry_msgs::PointStamped, sensor_msgs::Imu> MySyncPolicy;
+    Synchronizer<MySyncPolicy> sync;
 
 public:
     // Destructor
     ~AirForestViz() {}
 
-    AirForestViz(ros::NodeHandlePtr &nh_ptr_) : nh_ptr(nh_ptr_)
+    AirForestViz(ros::NodeHandlePtr &nh_ptr_)
+        : nh_ptr(nh_ptr_),
+          sync(MySyncPolicy(10), djiPosSub, djiImuSub)
     {
         NUM_THREAD = omp_get_max_threads();
 
@@ -63,9 +73,10 @@ public:
         livoxCloudSub  = nh_ptr->subscribe<livox_ros_driver::CustomMsg>("/livox/lidar", 50, &AirForestViz::livoxCloudHandler, this, ros::TransportHints().tcpNoDelay());
         ousterCloudPub = nh_ptr->advertise<sensor_msgs::PointCloud2>("/livox/lidar_ouster", 50);
 
-        // Subscribe to the position topic
-        djiImuSub = nh_ptr->subscribe("/dji_osdk_ros/imu", 100, &AirForestViz::djiImuHandler, this);
-        djiPosSub = nh_ptr->subscribe("/dji_osdk_ros/local_position", 100, &AirForestViz::djiPosHandler, this);
+        djiPosSub.subscribe(*(nh_ptr), "/dji_osdk_ros/local_position", 1);
+        djiImuSub.subscribe(*(nh_ptr), "/dji_osdk_ros/imu", 1);
+
+        sync.registerCallback(boost::bind(&AirForestViz::djiImuPosHandler, this, _1, _2));
     }
 
     void livoxCloudHandler(const livox_ros_driver::CustomMsg::ConstPtr &msgIn)
@@ -102,13 +113,12 @@ public:
         thisPub.publish(tempCloud);
     }
 
-    void djiImuHandler(const sensor_msgs::Imu::ConstPtr msg)
+    void djiImuPosHandler(const geometry_msgs::PointStamped::ConstPtr &PosMsg, const sensor_msgs::Imu::ConstPtr &ImuMsg)
     {
 
-    }
-
-    void djiPosHandler(const geometry_msgs::PointStamped::ConstPtr msg)
-    {
+        printf("Pos time: %.3f. Imu time: %.3f. Time diff: %6.3f\n",
+                PosMsg->header.stamp.toSec(), ImuMsg->header.stamp.toSec(),
+                PosMsg->header.stamp.toSec() - ImuMsg->header.stamp.toSec());
 
     }
 };
