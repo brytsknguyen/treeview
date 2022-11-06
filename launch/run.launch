@@ -1,7 +1,7 @@
 <launch>
 
       <!-- treeview Dataset -->
-      <arg  name="bag_file"  default="/home/tmn/DATASETS/tmn__2022-10-06-13-50-02_filter.bag"/> <arg name="start_time" default="0"/>
+      <arg  name="bag_file"  default="/media/tmn/mySataSSD2/KTH_AirForestry/tmn__2022-10-06-13-50-02_filter.bag"/> <arg name="start_time" default="0"/>
             
       <!-- Run the livox to ouster converter -->
       <node pkg="treeview" type="treeview_node" name="treeview_node" respawn="false" output="screen" required="true"> </node>
@@ -11,7 +11,7 @@
             args="-d $(find treeview)/launch/treeview.rviz" />
 
       <!-- Play the bag file -->
-      <param name="/use_sim_time" value="true" />
+      <param name="/use_sim_time" value="false" />
 
       <node required="true" pkg="rosbag" type="play" name="rosbag_player"
             args="--clock $(arg bag_file) -r 0.5 -s $(arg start_time)"
